@@ -9,13 +9,19 @@ import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { isValidObjectId, Model } from 'mongoose';
 import { Pokemon } from './entities/pokemon.entity';
 import { InjectModel } from '@nestjs/mongoose';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PokemonService {
+  private defaultLimit: number;
   constructor(
     @InjectModel(Pokemon.name)
     private readonly pokemonEntity: Model<Pokemon>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.defaultLimit = configService.get<number>('defaultLimit');
+  }
 
   async create(createPokemonDto: CreatePokemonDto): Promise<Pokemon> {
     console.log(createPokemonDto);
@@ -31,7 +37,17 @@ export class PokemonService {
     }
   }
 
-  findAll() {}
+  findAll(paginationDto: PaginationDto) {
+    const { limit = this.defaultLimit, offset = 0 } = paginationDto;
+    return this.pokemonEntity
+      .find()
+      .limit(limit)
+      .skip(offset)
+      .sort({
+        no: 1,
+      })
+      .select('-__v');
+  }
 
   async findOne(id: string) {
     let pokemon: Pokemon;
@@ -73,7 +89,7 @@ export class PokemonService {
     return;
   }
 
-  private handleExceptions(error: any) {
+  handleExceptions(error: any) {
     if (error.code === 11000) {
       const duplicatedField = Object.keys(error.keyValue)[0];
 
@@ -93,5 +109,8 @@ export class PokemonService {
         'No se puede crear el Pokémon - revisa los logs del servidor',
       );
     }
+  }
+  executeSeed(createPokemonDto: CreatePokemonDto) {
+    this.create(createPokemonDto);
   }
 }
